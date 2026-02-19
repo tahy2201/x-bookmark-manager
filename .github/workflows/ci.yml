@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - uses: reviewdog/action-setup@v1
+      - name: TypeScript check
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx tsc --noEmit 2>&1 | reviewdog -efm="%f(%l,%c): %trror TS%n: %m" -name="tsc" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false
+      - name: ESLint
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run lint --format=unix 2>&1 | reviewdog -efm="%f:%l:%c: %m" -name="eslint" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false
+      - name: Build check
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: placeholder
+          VITE_OEMBED_PROXY_URL: placeholder
