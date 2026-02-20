@@ -20,5 +20,7 @@ server/index.html
 Thumbs.db
 
 # Other
-.claude
+.claude/*
+!.claude/CLAUDE.md
+!.claude/rules/
 .wrangler
