@@ -13,21 +13,19 @@ declare global {
   }
 }
 
+// Twitterウィジェット内部カードのborder-radius（白い角をクリップするために使用）
+const TWEET_CLIP_RADIUS = 12;
+
 // React.memo でラップし、html が変わらない限り再レンダリング・DOM操作を一切しない。
-// これにより親コンポーネントの再レンダリング時でも Twitter が差し替えた iframe が消えない。
-// memo の比較は html のみ。bgColor 変化時は useEffect で直接 DOM を更新してiframeを保護する。
+// bgColor 変化時は useEffect で直接 DOM を更新して iframe を保護する。
 const TweetEmbed = memo(function TweetEmbed({ html, bgColor }: { html: string; bgColor: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ref.current) return;
-    // OSのダークモードに合わせて data-theme を注入してから innerHTML をセット
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     ref.current.innerHTML = isDark
-      ? html.replace(
-          /<blockquote class="twitter-tweet"/g,
-          '<blockquote class="twitter-tweet" data-theme="dark"'
-        )
+      ? html.replace(/<blockquote class="twitter-tweet"/g, '<blockquote class="twitter-tweet" data-theme="dark"')
       : html;
     window.twttr?.widgets?.load(ref.current);
   }, [html]);
@@ -38,7 +36,23 @@ const TweetEmbed = memo(function TweetEmbed({ html, bgColor }: { html: string; b
     ref.current.style.background = bgColor;
   }, [bgColor]);
 
-  // bgColor を明示してiframe外側の白い領域をカード背景色で確実に埋める
+  // iframeとラッパーdivにclip-pathを適用してiframe内部の白い角をクリップする
+  useEffect(() => {
+    if (!ref.current) return;
+    const applyClip = () => {
+      ref.current?.querySelectorAll("iframe").forEach((iframe) => {
+        (iframe as HTMLIFrameElement).style.clipPath = `inset(0 round ${TWEET_CLIP_RADIUS}px)`;
+      });
+      ref.current?.querySelectorAll(".twitter-tweet").forEach((el) => {
+        (el as HTMLElement).style.overflow = "hidden";
+        (el as HTMLElement).style.borderRadius = `${TWEET_CLIP_RADIUS}px`;
+      });
+    };
+    const observer = new MutationObserver(applyClip);
+    observer.observe(ref.current, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   return <div ref={ref} style={{ display: "flex", justifyContent: "center", background: bgColor }} />;
 }, (prev, next) => prev.html === next.html);
 
@@ -59,9 +73,6 @@ export function BookmarkCard({ bookmark, onEdit, onDelete }: Props) {
       marginBottom: 16,
       background: token.colorBgContainer,
       boxShadow: token.boxShadowTertiary,
-      // transform: translateZ(0) で確実にGPUレイヤーを生成し角の白滲みを防ぐ
-      // willChange はヒントに過ぎず保証されないため実際のtransformを使用する
-      transform: "translateZ(0)",
     }}>
       <TweetEmbed html={bookmark.embedded_html} bgColor={token.colorBgContainer} />
       <div style={{
