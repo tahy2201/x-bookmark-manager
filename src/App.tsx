@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { ConfigProvider, theme } from "antd";
 import type { GoogleUser } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { MainScreen } from "./components/MainScreen";
@@ -9,6 +10,16 @@ function App() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(
     getSpreadsheetId()
   );
+  const [isDark, setIsDark] = useState(
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const handleLogin = (loggedInUser: GoogleUser, ssId: string) => {
     setUser(loggedInUser);
@@ -19,17 +30,21 @@ function App() {
     setUser(null);
   };
 
-  if (user && spreadsheetId) {
-    return (
-      <MainScreen
-        user={user}
-        spreadsheetId={spreadsheetId}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  return <LoginScreen onLogin={handleLogin} />;
+  return (
+    <ConfigProvider
+      theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
+    >
+      {user && spreadsheetId ? (
+        <MainScreen
+          user={user}
+          spreadsheetId={spreadsheetId}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <LoginScreen onLogin={handleLogin} />
+      )}
+    </ConfigProvider>
+  );
 }
 
 export default App;

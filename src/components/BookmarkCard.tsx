@@ -1,11 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
+import { Button, Tag, Space, theme } from "antd";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { Bookmark } from "../types";
-
-interface Props {
-  bookmark: Bookmark;
-  onEdit: (bookmark: Bookmark) => void;
-  onDelete: (bookmarkId: string) => void;
-}
 
 declare global {
   interface Window {
@@ -17,98 +13,90 @@ declare global {
   }
 }
 
-export function BookmarkCard({ bookmark, onEdit, onDelete }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+// React.memo でラップし、html が変わらない限り再レンダリング・DOM操作を一切しない。
+// これにより親コンポーネントの再レンダリング時でも Twitter が差し替えた iframe が消えない。
+// memo の比較は html のみ。bgColor 変化時は useEffect で直接 DOM を更新してiframeを保護する。
+const TweetEmbed = memo(function TweetEmbed({ html, bgColor }: { html: string; bgColor: string }) {
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    window.twttr?.widgets?.load(containerRef.current ?? undefined);
-  }, [bookmark.embedded_html]);
+    if (!ref.current) return;
+    // OSのダークモードに合わせて data-theme を注入してから innerHTML をセット
+    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    ref.current.innerHTML = isDark
+      ? html.replace(
+          /<blockquote class="twitter-tweet"/g,
+          '<blockquote class="twitter-tweet" data-theme="dark"'
+        )
+      : html;
+    window.twttr?.widgets?.load(ref.current);
+  }, [html]);
+
+  // テーマ変化時は innerHTML を触らず背景色だけ更新（iframe が消えない）
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.style.background = bgColor;
+  }, [bgColor]);
+
+  // bgColor を明示してiframe外側の白い領域をカード背景色で確実に埋める
+  return <div ref={ref} style={{ display: "flex", justifyContent: "center", background: bgColor }} />;
+}, (prev, next) => prev.html === next.html);
+
+interface Props {
+  bookmark: Bookmark;
+  onEdit: (bookmark: Bookmark) => void;
+  onDelete: (bookmarkId: string) => void;
+}
+
+export function BookmarkCard({ bookmark, onEdit, onDelete }: Props) {
+  const { token } = theme.useToken();
 
   return (
-    <div style={styles.card}>
-      <div
-        ref={containerRef}
-        dangerouslySetInnerHTML={{ __html: bookmark.embedded_html }}
-        style={styles.embed}
-      />
-      <div style={styles.footer}>
-        <div style={styles.tags}>
+    <div style={{
+      borderRadius: token.borderRadiusLG,
+      border: `1px solid ${token.colorBorderSecondary}`,
+      overflow: "hidden",
+      marginBottom: 16,
+      background: token.colorBgContainer,
+      boxShadow: token.boxShadowTertiary,
+      // transform: translateZ(0) で確実にGPUレイヤーを生成し角の白滲みを防ぐ
+      // willChange はヒントに過ぎず保証されないため実際のtransformを使用する
+      transform: "translateZ(0)",
+    }}>
+      <TweetEmbed html={bookmark.embedded_html} bgColor={token.colorBgContainer} />
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "8px 16px",
+        borderTop: `1px solid ${token.colorBorderSecondary}`,
+        background: token.colorFillQuaternary,
+        flexWrap: "wrap",
+        gap: 8,
+      }}>
+        <Space size={[4, 4]} wrap>
           {bookmark.tags.map((tag) => (
-            <span key={tag} style={styles.tag}>
-              {tag}
-            </span>
+            <Tag key={tag} color="blue">{tag}</Tag>
           ))}
-        </div>
-        <div style={styles.actions}>
-          <button style={styles.editButton} onClick={() => onEdit(bookmark)}>
+        </Space>
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => onEdit(bookmark)}
+          >
             編集
-          </button>
-          <button
-            style={styles.deleteButton}
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
             onClick={() => onDelete(bookmark.id)}
           >
             削除
-          </button>
-        </div>
+          </Button>
+        </Space>
       </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    border: "1px solid #e1e8ed",
-    overflow: "hidden",
-    marginBottom: "16px",
-  },
-  embed: {
-    padding: "0",
-  },
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "8px 16px",
-    borderTop: "1px solid #e1e8ed",
-    backgroundColor: "#f9f9f9",
-    flexWrap: "wrap",
-    gap: "8px",
-  },
-  tags: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "6px",
-  },
-  tag: {
-    backgroundColor: "#e8f5fe",
-    color: "#1d9bf0",
-    fontSize: "12px",
-    padding: "2px 10px",
-    borderRadius: "12px",
-    fontWeight: 500,
-  },
-  actions: {
-    display: "flex",
-    gap: "8px",
-  },
-  editButton: {
-    backgroundColor: "transparent",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-    padding: "4px 12px",
-    fontSize: "13px",
-    cursor: "pointer",
-    color: "#555",
-  },
-  deleteButton: {
-    backgroundColor: "transparent",
-    border: "1px solid #e0245e",
-    borderRadius: "6px",
-    padding: "4px 12px",
-    fontSize: "13px",
-    cursor: "pointer",
-    color: "#e0245e",
-  },
-};

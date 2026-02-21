@@ -1,21 +1,27 @@
 import { useState } from "react";
-import type { Tag } from "../types";
+import { Modal, Input, Button, Tag, Space, Typography, Alert } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import type { Tag as TagType } from "../types";
 import { fetchOEmbed } from "../lib/oembed";
 import { isValidTweetUrl, normalizeTweetUrl } from "../lib/utils";
 
 interface Props {
-  tags: Tag[];
+  tags: TagType[];
   onAdd: (url: string, tags: string[]) => Promise<void>;
+  onCreateTag: (name: string) => Promise<TagType>;
   onClose: () => void;
 }
 
-export function AddBookmarkModal({ tags, onAdd, onClose }: Props) {
+export function AddBookmarkModal({ tags, onAdd, onCreateTag, onClose }: Props) {
   const [url, setUrl] = useState("");
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showNewTagInput, setShowNewTagInput] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [creatingTag, setCreatingTag] = useState(false);
 
   const handleFetch = async () => {
     setFetchError(null);
@@ -52,151 +58,116 @@ export function AddBookmarkModal({ tags, onAdd, onClose }: Props) {
     );
   };
 
+  const handleCreateTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    setCreatingTag(true);
+    try {
+      await onCreateTag(name);
+      setSelectedTags((prev) => [...prev, name]);
+      setNewTagName("");
+      setShowNewTagInput(false);
+    } finally {
+      setCreatingTag(false);
+    }
+  };
+
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.title}>ブックマークを追加</h2>
+    <Modal
+      open
+      title="ブックマークを追加"
+      onCancel={onClose}
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          キャンセル
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          onClick={handleSave}
+          disabled={!previewHtml}
+          loading={saving}
+        >
+          保存
+        </Button>,
+      ]}
+      width={560}
+    >
+      <Space.Compact style={{ width: "100%", marginBottom: 8 }}>
+        <Input
+          placeholder="https://twitter.com/..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onPressEnter={handleFetch}
+        />
+        <Button type="primary" onClick={handleFetch} loading={fetching}>
+          取得
+        </Button>
+      </Space.Compact>
 
-        <div style={styles.row}>
-          <input
-            style={styles.input}
-            type="text"
-            placeholder="https://twitter.com/..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-          />
-          <button style={styles.fetchButton} onClick={handleFetch} disabled={fetching}>
-            {fetching ? "取得中..." : "取得"}
-          </button>
-        </div>
+      {fetchError && (
+        <Alert type="error" message={fetchError} style={{ marginBottom: 12 }} />
+      )}
 
-        {fetchError && <p style={styles.error}>{fetchError}</p>}
+      {previewHtml && (
+        <div
+          style={{
+            border: "1px solid var(--ant-color-border)",
+            borderRadius: 8,
+            padding: 8,
+            marginBottom: 16,
+            overflow: "hidden",
+            display: "flex",
+            justifyContent: "center",
+          }}
+          dangerouslySetInnerHTML={{ __html: previewHtml }}
+        />
+      )}
 
-        {previewHtml && (
-          <div
-            style={styles.preview}
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
-        )}
-
-        {tags.length > 0 && (
-          <div style={styles.tagSection}>
-            <p style={styles.tagLabel}>タグを選択</p>
-            <div style={styles.tagList}>
-              {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  style={{
-                    ...styles.tagChip,
-                    ...(selectedTags.includes(tag.name) ? styles.tagChipSelected : {}),
-                  }}
-                  onClick={() => toggleTag(tag.name)}
-                >
-                  {tag.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={styles.buttons}>
-          <button style={styles.cancelButton} onClick={onClose}>
-            キャンセル
-          </button>
-          <button
-            style={styles.saveButton}
-            onClick={handleSave}
-            disabled={!previewHtml || saving}
-          >
-            {saving ? "保存中..." : "保存"}
-          </button>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
+          タグを選択
+        </Typography.Text>
+        <Space size={[6, 6]} wrap>
+          {tags.map((tag) => (
+            <Tag.CheckableTag
+              key={tag.id}
+              checked={selectedTags.includes(tag.name)}
+              onChange={() => toggleTag(tag.name)}
+            >
+              {tag.name}
+            </Tag.CheckableTag>
+          ))}
+          {showNewTagInput ? (
+            <Space.Compact size="small">
+              <Input
+                size="small"
+                placeholder="タグ名"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                onPressEnter={handleCreateTag}
+                autoFocus
+                style={{ width: 100 }}
+              />
+              <Button size="small" type="primary" loading={creatingTag} onClick={handleCreateTag}>
+                追加
+              </Button>
+              <Button size="small" onClick={() => { setShowNewTagInput(false); setNewTagName(""); }}>
+                ✕
+              </Button>
+            </Space.Compact>
+          ) : (
+            <Button
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() => setShowNewTagInput(true)}
+              type="dashed"
+            >
+              新規タグ
+            </Button>
+          )}
+        </Space>
       </div>
-    </div>
+    </Modal>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
-  },
-  modal: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    padding: "32px",
-    width: "100%",
-    maxWidth: "560px",
-    maxHeight: "80vh",
-    overflowY: "auto",
-  },
-  title: { fontSize: "18px", fontWeight: "bold", marginBottom: "20px" },
-  row: { display: "flex", gap: "8px", marginBottom: "8px" },
-  input: {
-    flex: 1,
-    padding: "10px 14px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    fontSize: "14px",
-  },
-  fetchButton: {
-    padding: "10px 20px",
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "14px",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-  error: { color: "#e0245e", fontSize: "13px", marginBottom: "12px" },
-  preview: {
-    border: "1px solid #e1e8ed",
-    borderRadius: "8px",
-    padding: "8px",
-    marginBottom: "16px",
-    overflow: "hidden",
-  },
-  tagSection: { marginBottom: "20px" },
-  tagLabel: { fontSize: "13px", color: "#666", marginBottom: "8px" },
-  tagList: { display: "flex", flexWrap: "wrap", gap: "8px" },
-  tagChip: {
-    padding: "4px 14px",
-    borderRadius: "16px",
-    border: "1px solid #ccc",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#555",
-  },
-  tagChipSelected: {
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    borderColor: "#1d9bf0",
-  },
-  buttons: { display: "flex", justifyContent: "flex-end", gap: "12px" },
-  cancelButton: {
-    padding: "10px 24px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  saveButton: {
-    padding: "10px 24px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: 600,
-  },
-};

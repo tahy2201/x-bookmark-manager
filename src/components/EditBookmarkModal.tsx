@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { Bookmark, Tag } from "../types";
+import { Modal, Button, Tag, Space, Typography } from "antd";
+import type { Bookmark, Tag as TagType } from "../types";
 
 interface Props {
   bookmark: Bookmark;
-  tags: Tag[];
+  tags: TagType[];
   onSave: (bookmarkId: string, tags: string[]) => Promise<void>;
   onClose: () => void;
 }
@@ -29,95 +30,40 @@ export function EditBookmarkModal({ bookmark, tags, onSave, onClose }: Props) {
   };
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.title}>タグを編集</h2>
-        <p style={styles.author}>@{bookmark.author_name}</p>
-
-        {tags.length === 0 ? (
-          <p style={styles.empty}>タグがありません。先にタグを作成してください。</p>
-        ) : (
-          <div style={styles.tagList}>
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                style={{
-                  ...styles.tagChip,
-                  ...(selectedTags.includes(tag.name) ? styles.tagChipSelected : {}),
-                }}
-                onClick={() => toggleTag(tag.name)}
-              >
-                {tag.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div style={styles.buttons}>
-          <button style={styles.cancelButton} onClick={onClose}>
-            キャンセル
-          </button>
-          <button style={styles.saveButton} onClick={handleSave} disabled={saving}>
-            {saving ? "保存中..." : "保存"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open
+      title="タグを編集"
+      onCancel={onClose}
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          キャンセル
+        </Button>,
+        <Button key="save" type="primary" onClick={handleSave} loading={saving}>
+          保存
+        </Button>,
+      ]}
+      width={480}
+    >
+      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+        @{bookmark.author_name}
+      </Typography.Text>
+      {tags.length === 0 ? (
+        <Typography.Text type="secondary">
+          タグがありません。先にタグを作成してください。
+        </Typography.Text>
+      ) : (
+        <Space size={[6, 6]} wrap style={{ marginBottom: 8 }}>
+          {tags.map((tag) => (
+            <Tag.CheckableTag
+              key={tag.id}
+              checked={selectedTags.includes(tag.name)}
+              onChange={() => toggleTag(tag.name)}
+            >
+              {tag.name}
+            </Tag.CheckableTag>
+          ))}
+        </Space>
+      )}
+    </Modal>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
-  },
-  modal: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    padding: "32px",
-    width: "100%",
-    maxWidth: "480px",
-  },
-  title: { fontSize: "18px", fontWeight: "bold", marginBottom: "8px" },
-  author: { fontSize: "14px", color: "#666", marginBottom: "20px" },
-  empty: { color: "#999", fontSize: "14px", marginBottom: "20px" },
-  tagList: { display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "24px" },
-  tagChip: {
-    padding: "4px 14px",
-    borderRadius: "16px",
-    border: "1px solid #ccc",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#555",
-  },
-  tagChipSelected: {
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    borderColor: "#1d9bf0",
-  },
-  buttons: { display: "flex", justifyContent: "flex-end", gap: "12px" },
-  cancelButton: {
-    padding: "10px 24px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  saveButton: {
-    padding: "10px 24px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: 600,
-  },
-};

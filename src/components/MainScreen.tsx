@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button, Input, Tag, Typography, Alert, Tooltip, theme } from "antd";
+import { PlusOutlined, TagsOutlined, LogoutOutlined, SearchOutlined } from "@ant-design/icons";
 import type { Bookmark, GoogleUser } from "../types";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useTags } from "../hooks/useTags";
@@ -14,6 +16,8 @@ interface Props {
 }
 
 export function MainScreen({ user, spreadsheetId, onLogout }: Props) {
+  const { token } = theme.useToken();
+
   const {
     filteredBookmarks,
     loading,
@@ -64,78 +68,120 @@ export function MainScreen({ user, spreadsheetId, onLogout }: Props) {
     }
   };
 
-  // 全タグ一覧（bookmarks + tagsシート のユニオン）
-  const allTagNames = Array.from(
-    new Set(tags.map((t) => t.name))
-  );
+  const allTagNames = Array.from(new Set(tags.map((t) => t.name)));
 
   return (
-    <div style={styles.container}>
-      {/* ヘッダー */}
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>X Bookmark Manager</h1>
-        <div style={styles.headerRight}>
-          <span style={styles.userName}>{user.name}</span>
-          <button style={styles.logoutButton} onClick={onLogout}>
-            ログアウト
-          </button>
-          <button style={styles.addButton} onClick={() => setShowAddModal(true)}>
-            + 追加
-          </button>
+    <div style={{ minHeight: "100vh", background: token.colorBgLayout }}>
+
+      {/* ヘッダー・検索・タグを一つの sticky ラッパーに */}
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+        background: token.colorBgContainer,
+        boxShadow: token.boxShadow,
+      }}>
+        {/* ヘッダー */}
+        <header style={{
+          padding: "0 24px",
+          height: 60,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            X Bookmark Manager
+          </Typography.Title>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              {user.name}
+            </Typography.Text>
+            <Button icon={<LogoutOutlined />} onClick={onLogout} size="small">
+              ログアウト
+            </Button>
+            <Tooltip title="タグ管理">
+              <Button
+                icon={<TagsOutlined />}
+                onClick={() => setShowTagManager(true)}
+                size="small"
+              />
+            </Tooltip>
+            <Tooltip title="ブックマークを追加">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setShowAddModal(true)}
+                shape="circle"
+              />
+            </Tooltip>
+          </div>
+        </header>
+
+        {/* 検索バー */}
+        <div style={{
+          padding: "12px 24px",
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }}>
+          <Input
+            prefix={<SearchOutlined />}
+            placeholder="ツイート本文・投稿者名で検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            allowClear
+            style={{ borderRadius: 24 }}
+          />
         </div>
-      </header>
 
-      {/* 検索バー */}
-      <div style={styles.searchBar}>
-        <input
-          style={styles.searchInput}
-          type="text"
-          placeholder="🔍 ツイート本文・投稿者名で検索..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <button style={styles.tagManagerButton} onClick={() => setShowTagManager(true)}>
-          タグ管理
-        </button>
-      </div>
-
-      {/* タグフィルター */}
-      {allTagNames.length > 0 && (
-        <div style={styles.tagFilter}>
-          <button
-            style={{
-              ...styles.tagFilterChip,
-              ...(selectedTag === null ? styles.tagFilterChipActive : {}),
-            }}
-            onClick={() => setSelectedTag(null)}
-          >
-            すべて
-          </button>
-          {allTagNames.map((name) => (
-            <button
-              key={name}
-              style={{
-                ...styles.tagFilterChip,
-                ...(selectedTag === name ? styles.tagFilterChipActive : {}),
-              }}
-              onClick={() => setSelectedTag(selectedTag === name ? null : name)}
+        {/* タグフィルター */}
+        {allTagNames.length > 0 && (
+          <div style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            padding: "10px 24px",
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          }}>
+            <Tag.CheckableTag
+              checked={selectedTag === null}
+              onChange={() => setSelectedTag(null)}
             >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
+              すべて
+            </Tag.CheckableTag>
+            {allTagNames.map((name) => (
+              <Tag.CheckableTag
+                key={name}
+                checked={selectedTag === name}
+                onChange={() => setSelectedTag(selectedTag === name ? null : name)}
+              >
+                {name}
+              </Tag.CheckableTag>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* エラー表示 */}
       {(error || actionError) && (
-        <p style={styles.error}>{error ?? actionError}</p>
+        <Alert
+          type="error"
+          message={error ?? actionError}
+          style={{ margin: "8px 24px" }}
+          closable
+        />
       )}
 
       {/* ブックマーク一覧 */}
-      <main style={styles.main}>
-        {loading && <p style={styles.message}>読み込み中...</p>}
+      <main style={{ maxWidth: 600, margin: "0 auto", padding: "24px 16px" }}>
+        {loading && (
+          <Typography.Text type="secondary" style={{ display: "block", textAlign: "center", padding: "48px 0" }}>
+            読み込み中...
+          </Typography.Text>
+        )}
         {!loading && filteredBookmarks.length === 0 && (
-          <p style={styles.message}>ブックマークがありません</p>
+          <Typography.Text type="secondary" style={{ display: "block", textAlign: "center", padding: "48px 0" }}>
+            ブックマークがありません
+          </Typography.Text>
         )}
         {filteredBookmarks.map((bookmark) => (
           <BookmarkCard
@@ -152,6 +198,7 @@ export function MainScreen({ user, spreadsheetId, onLogout }: Props) {
         <AddBookmarkModal
           tags={tags}
           onAdd={handleAddBookmark}
+          onCreateTag={addTag}
           onClose={() => setShowAddModal(false)}
         />
       )}
@@ -174,118 +221,3 @@ export function MainScreen({ user, spreadsheetId, onLogout }: Props) {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    backgroundColor: "#fff",
-    borderBottom: "1px solid #e1e8ed",
-    padding: "0 24px",
-    height: "60px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-  },
-  headerTitle: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#1a1a1a",
-    margin: 0,
-  },
-  headerRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  userName: { fontSize: "13px", color: "#666" },
-  logoutButton: {
-    padding: "6px 14px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#555",
-  },
-  addButton: {
-    padding: "8px 20px",
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    border: "none",
-    borderRadius: "20px",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  searchBar: {
-    display: "flex",
-    gap: "12px",
-    padding: "16px 24px",
-    backgroundColor: "#fff",
-    borderBottom: "1px solid #e1e8ed",
-  },
-  searchInput: {
-    flex: 1,
-    padding: "10px 16px",
-    border: "1px solid #ccc",
-    borderRadius: "24px",
-    fontSize: "14px",
-    outline: "none",
-  },
-  tagManagerButton: {
-    padding: "10px 20px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "14px",
-    color: "#555",
-    whiteSpace: "nowrap",
-  },
-  tagFilter: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
-    padding: "12px 24px",
-    backgroundColor: "#fff",
-    borderBottom: "1px solid #e1e8ed",
-  },
-  tagFilterChip: {
-    padding: "4px 16px",
-    borderRadius: "16px",
-    border: "1px solid #ccc",
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#555",
-  },
-  tagFilterChipActive: {
-    backgroundColor: "#1d9bf0",
-    color: "#fff",
-    borderColor: "#1d9bf0",
-  },
-  error: {
-    color: "#e0245e",
-    fontSize: "14px",
-    padding: "12px 24px",
-    backgroundColor: "#fff9fa",
-    borderBottom: "1px solid #fce4ec",
-  },
-  main: {
-    maxWidth: "600px",
-    margin: "0 auto",
-    padding: "24px 16px",
-  },
-  message: {
-    textAlign: "center",
-    color: "#999",
-    fontSize: "14px",
-    padding: "48px 0",
-  },
-};
