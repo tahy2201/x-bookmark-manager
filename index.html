@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>X Bookmark Manager</title>
+    <script>
+      // 404.html からのリダイレクト復元 (GitHub Pages SPA サポート)
+      (function () {
+        var p = new URLSearchParams(window.location.search).get('p');
+        if (p) {
+          window.history.replaceState(null, '', '/x-bookmark-manager' + p);
+        }
+      })();
+    </script>
     <script src="https://accounts.google.com/gsi/client" async></script>
     <script async src="https://platform.twitter.com/widgets.js"></script>
   </head>

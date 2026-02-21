@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>X Bookmark Manager</title>
+    <script>
+      // GitHub Pages SPA サポート: 直接URLアクセス時にSPAへリダイレクト
+      var base = '/x-bookmark-manager';
+      var path = window.location.pathname.slice(base.length) || '/';
+      var search = window.location.search;
+      var hash = window.location.hash;
+      window.location.replace(
+        window.location.origin + base + '/?p=' + encodeURIComponent(path + search + hash)
+      );
+    </script>
+  </head>
+  <body></body>
+</html>

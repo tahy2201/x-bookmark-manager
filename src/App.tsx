@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ConfigProvider, theme } from "antd";
 import type { GoogleUser } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
@@ -30,20 +31,34 @@ function App() {
     setUser(null);
   };
 
+  const isAuthenticated = !!(user && spreadsheetId);
+
   return (
-    <ConfigProvider
-      theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
-    >
-      {user && spreadsheetId ? (
-        <MainScreen
-          user={user}
-          spreadsheetId={spreadsheetId}
-          onLogout={handleLogout}
-        />
-      ) : (
-        <LoginScreen onLogin={handleLogin} />
-      )}
-    </ConfigProvider>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <ConfigProvider
+        theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
+      >
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              isAuthenticated
+                ? <Navigate to="/" replace />
+                : <LoginScreen onLogin={handleLogin} />
+            }
+          />
+          <Route
+            path="/"
+            element={
+              isAuthenticated
+                ? <MainScreen user={user!} spreadsheetId={spreadsheetId!} onLogout={handleLogout} />
+                : <Navigate to="/login" replace />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ConfigProvider>
+    </BrowserRouter>
   );
 }
 
