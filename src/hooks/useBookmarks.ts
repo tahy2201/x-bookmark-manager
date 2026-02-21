@@ -9,6 +9,9 @@ import {
 } from "../lib/googleSheets";
 import { fetchOEmbed } from "../lib/oembed";
 import { normalizeTweetUrl } from "../lib/utils";
+import { MOCK_BOOKMARKS } from "../lib/mock/data";
+
+const IS_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export function useBookmarks(accessToken: string, spreadsheetId: string) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -21,6 +24,10 @@ export function useBookmarks(accessToken: string, spreadsheetId: string) {
     setLoading(true);
     setError(null);
     try {
+      if (IS_MOCK) {
+        setBookmarks(MOCK_BOOKMARKS);
+        return;
+      }
       const data = await fetchBookmarks(accessToken, spreadsheetId);
       setBookmarks(data);
     } catch (e) {
@@ -47,7 +54,9 @@ export function useBookmarks(accessToken: string, spreadsheetId: string) {
         tags,
         saved_at: new Date().toISOString(),
       };
-      await apiAddBookmark(accessToken, spreadsheetId, bookmark);
+      if (!IS_MOCK) {
+        await apiAddBookmark(accessToken, spreadsheetId, bookmark);
+      }
       setBookmarks((prev) => [bookmark, ...prev]);
       return bookmark;
     },
@@ -56,7 +65,9 @@ export function useBookmarks(accessToken: string, spreadsheetId: string) {
 
   const updateBookmarkTags = useCallback(
     async (bookmarkId: string, tags: string[]) => {
-      await apiUpdateBookmarkTags(accessToken, spreadsheetId, bookmarkId, tags);
+      if (!IS_MOCK) {
+        await apiUpdateBookmarkTags(accessToken, spreadsheetId, bookmarkId, tags);
+      }
       setBookmarks((prev) =>
         prev.map((b) => (b.id === bookmarkId ? { ...b, tags } : b))
       );
@@ -66,7 +77,9 @@ export function useBookmarks(accessToken: string, spreadsheetId: string) {
 
   const deleteBookmark = useCallback(
     async (bookmarkId: string) => {
-      await apiDeleteBookmark(accessToken, spreadsheetId, bookmarkId);
+      if (!IS_MOCK) {
+        await apiDeleteBookmark(accessToken, spreadsheetId, bookmarkId);
+      }
       setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId));
     },
     [accessToken, spreadsheetId]

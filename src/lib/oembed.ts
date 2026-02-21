@@ -1,6 +1,11 @@
 import type { OEmbedData } from "../types";
+import { mockFetchOEmbed } from "./mock/oembed";
+
+const IS_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export async function fetchOEmbed(tweetUrl: string): Promise<OEmbedData> {
+  if (IS_MOCK) return mockFetchOEmbed(tweetUrl);
+
   const proxyUrl = import.meta.env.VITE_OEMBED_PROXY_URL;
   if (!proxyUrl) {
     throw new Error("VITE_OEMBED_PROXY_URL is not configured");

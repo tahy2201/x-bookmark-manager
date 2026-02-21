@@ -1,6 +1,20 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Bookmark, Tag } from "../types";
 import { tagsStringToArray, tagsArrayToString } from "./utils";
+import {
+  mockInitSpreadsheet,
+  mockSaveSpreadsheetId,
+  mockGetSpreadsheetId,
+  mockFetchBookmarks,
+  mockAddBookmark,
+  mockUpdateBookmarkTags,
+  mockDeleteBookmark,
+  mockFetchTags,
+  mockAddTag,
+  mockDeleteTag,
+} from "./mock/sheets";
+
+const IS_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const DRIVE_API = "https://www.googleapis.com/drive/v3/files";
@@ -20,10 +34,12 @@ const TAG_HEADERS = ["id", "name", "created_at"];
 // ---- localStorage ----
 
 export function saveSpreadsheetId(id: string): void {
+  if (IS_MOCK) return mockSaveSpreadsheetId(id);
   localStorage.setItem(SPREADSHEET_ID_KEY, id);
 }
 
 export function getSpreadsheetId(): string | null {
+  if (IS_MOCK) return mockGetSpreadsheetId();
   return localStorage.getItem(SPREADSHEET_ID_KEY);
 }
 
@@ -52,6 +68,7 @@ async function sheetsRequest(
 // ---- スプレッドシート初期化 ----
 
 export async function initSpreadsheet(accessToken: string): Promise<string> {
+  if (IS_MOCK) return mockInitSpreadsheet();
   // 既存のスプレッドシートを検索
   const searchRes = await fetch(
     `${DRIVE_API}?q=name%3D'X+Bookmark+Manager'+and+mimeType%3D'application%2Fvnd.google-apps.spreadsheet'+and+trashed%3Dfalse&fields=files(id,name)`,
@@ -111,6 +128,7 @@ export async function fetchBookmarks(
   accessToken: string,
   spreadsheetId: string
 ): Promise<Bookmark[]> {
+  if (IS_MOCK) return mockFetchBookmarks();
   const data = (await sheetsRequest(
     accessToken,
     `${SHEETS_API}/${spreadsheetId}/values/bookmarks!A2:G`
@@ -136,6 +154,7 @@ export async function addBookmark(
   spreadsheetId: string,
   bookmark: Bookmark
 ): Promise<void> {
+  if (IS_MOCK) return mockAddBookmark(bookmark);
   await sheetsRequest(
     accessToken,
     `${SHEETS_API}/${spreadsheetId}/values/bookmarks!A1:G1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
@@ -164,6 +183,7 @@ export async function updateBookmarkTags(
   bookmarkId: string,
   tags: string[]
 ): Promise<void> {
+  if (IS_MOCK) return mockUpdateBookmarkTags(bookmarkId, tags);
   const bookmarks = await fetchBookmarks(accessToken, spreadsheetId);
   const index = bookmarks.findIndex((b) => b.id === bookmarkId);
   if (index === -1) throw new Error(`Bookmark not found: ${bookmarkId}`);
@@ -185,6 +205,7 @@ export async function deleteBookmark(
   spreadsheetId: string,
   bookmarkId: string
 ): Promise<void> {
+  if (IS_MOCK) return mockDeleteBookmark(bookmarkId);
   const bookmarks = await fetchBookmarks(accessToken, spreadsheetId);
   const index = bookmarks.findIndex((b) => b.id === bookmarkId);
   if (index === -1) throw new Error(`Bookmark not found: ${bookmarkId}`);
@@ -203,6 +224,7 @@ export async function fetchTags(
   accessToken: string,
   spreadsheetId: string
 ): Promise<Tag[]> {
+  if (IS_MOCK) return mockFetchTags();
   const data = (await sheetsRequest(
     accessToken,
     `${SHEETS_API}/${spreadsheetId}/values/tags!A2:C`
@@ -224,6 +246,7 @@ export async function addTag(
   spreadsheetId: string,
   tag: Tag
 ): Promise<void> {
+  if (IS_MOCK) return mockAddTag(tag);
   await sheetsRequest(
     accessToken,
     `${SHEETS_API}/${spreadsheetId}/values/tags!A1:C1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
@@ -241,6 +264,7 @@ export async function deleteTag(
   spreadsheetId: string,
   tagName: string
 ): Promise<void> {
+  if (IS_MOCK) return mockDeleteTag(tagName);
   // 1. tagsシートから削除対象を探してクリア
   const tags = await fetchTags(accessToken, spreadsheetId);
   const tagIndex = tags.findIndex((t) => t.name === tagName);

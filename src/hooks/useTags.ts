@@ -6,6 +6,9 @@ import {
   addTag as apiAddTag,
   deleteTag as apiDeleteTag,
 } from "../lib/googleSheets";
+import { MOCK_TAGS } from "../lib/mock/data";
+
+const IS_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export function useTags(accessToken: string, spreadsheetId: string) {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -14,6 +17,10 @@ export function useTags(accessToken: string, spreadsheetId: string) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      if (IS_MOCK) {
+        setTags(MOCK_TAGS);
+        return;
+      }
       const data = await fetchTags(accessToken, spreadsheetId);
       setTags(data);
     } finally {
@@ -32,7 +39,9 @@ export function useTags(accessToken: string, spreadsheetId: string) {
         name: name.trim(),
         created_at: new Date().toISOString(),
       };
-      await apiAddTag(accessToken, spreadsheetId, tag);
+      if (!IS_MOCK) {
+        await apiAddTag(accessToken, spreadsheetId, tag);
+      }
       setTags((prev) => [...prev, tag]);
       return tag;
     },
@@ -41,7 +50,9 @@ export function useTags(accessToken: string, spreadsheetId: string) {
 
   const deleteTag = useCallback(
     async (tagName: string) => {
-      await apiDeleteTag(accessToken, spreadsheetId, tagName);
+      if (!IS_MOCK) {
+        await apiDeleteTag(accessToken, spreadsheetId, tagName);
+      }
       setTags((prev) => prev.filter((t) => t.name !== tagName));
     },
     [accessToken, spreadsheetId]
